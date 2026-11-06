@@ -8,12 +8,19 @@ import { createMenu } from './menu.js';
 import { AudioOut } from './audio.js';
 import { installLifecycle } from './lifecycle.js';
 import { mountTradeUI } from './trade-ui.js';
+import { acquireInstance } from './instance.js';
 
 const $ = (selector) => document.querySelector(selector);
 const params = new URLSearchParams(location.search);
 const testMode = params.has('test');
 
 async function main() {
+  if (!(await acquireInstance())) {
+    $('#welcome').hidden = true;
+    $('#blocked').hidden = false;
+    document.documentElement.dataset.ready = '1';
+    return;
+  }
   const [core, storage, names] = await Promise.all([createCore(), openStorage(), loadNames()]);
   const session = await Session.create({ core, storage, names });
   const screen = createScreen($('#screen'), $('#screen-wrap'));
@@ -111,10 +118,7 @@ async function main() {
     toastTimer = setTimeout(() => { toast.hidden = true; }, 5000);
   };
 
-  async function exportSav() {
-    const bytes = session.exportSram();
-    if (!bytes || !session.romInfo) return notify('Carga primero un juego.');
-    const name = `${session.romInfo.baseName}.sav`;
+  async function downloadSav(bytes, name) {
     const file = new File([bytes], name, { type: 'application/octet-stream' });
     // On iOS the share sheet offers "Guardar en Archivos"; elsewhere a normal download.
     if (navigator.canShare?.({ files: [file] })) {
@@ -133,17 +137,31 @@ async function main() {
     setTimeout(() => URL.revokeObjectURL(url), 10_000);
   }
 
+  async function exportSav() {
+    const bytes = session.exportSram();
+    if (!bytes || !session.romInfo) return notify('Carga primero un juego.');
+    await downloadSav(bytes, `${session.romInfo.baseName}.sav`);
+  }
+
+  async function exportBackup() {
+    if (!session.romInfo) return notify('Carga primero un juego.');
+    const backup = await session.latestBackup();
+    if (!backup) return notify('Aún no hay copias de seguridad: se crean al importar una partida.');
+    await downloadSav(backup.bytes, `${session.romInfo.baseName}-copia.sav`);
+  }
+
   const savInput = $('#sav-input');
   savInput.addEventListener('change', async () => {
     const file = savInput.files[0];
     savInput.value = '';
     if (!file) return;
     const r = await session.importSram(new Uint8Array(await file.arrayBuffer()));
-    notify(r.ok ? 'Partida importada. Tu partida anterior quedó guardada como copia de seguridad.' : r.message);
+    notify(r.ok ? 'Partida importada. Tu partida anterior quedó como copia: menú → «Exportar copia anterior».' : r.message);
   });
 
   menu.add('Exportar partida (.sav)', exportSav);
   menu.add('Importar partida (.sav)…', () => savInput.click());
+  menu.add('Exportar copia anterior (.sav)', exportBackup);
   menu.add('Cargar otra ROM…', () => input.click());
 
   const soundItem = menu.add('', async () => {

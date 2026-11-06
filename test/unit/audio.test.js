@@ -189,3 +189,27 @@ test('worklet waits to rebuffer 40 ms after an underrun instead of crackling', (
   w.send(2000, 0.5); // 3000 frames buffered now: restarts
   assert.ok(w.block().l.some((v) => v !== 0));
 });
+
+test('resume() is called synchronously inside the gesture, before the worklet module loads', async () => {
+  const ctx = fakeContext('suspended');
+  let release;
+  ctx.audioWorklet = { addModule: () => new Promise((r) => { release = r; }) };
+  const audio = new AudioOut({ makeContext: () => ctx });
+  const pending = audio.ensureRunning();
+  assert.equal(ctx.resumes, 1, 'resume must not wait for addModule (iOS drops the user activation)');
+  release();
+  await pending;
+  assert.equal(audio.state, 'running');
+});
+
+test('audio pushed while the context is suspended or interrupted is dropped, not queued', async () => {
+  for (const state of ['suspended', 'interrupted']) {
+    const ctx = fakeContext('running');
+    const audio = new AudioOut({ makeContext: () => ctx });
+    await audio.ensureRunning();
+    ctx.state = state;
+    for (let i = 0; i < 20; i++) audio.push(stereo(546, 16384), 32768);
+    ctx.state = 'running';
+    assert.ok(pull(ctx, 512).every((v) => v === 0), state);
+  }
+});

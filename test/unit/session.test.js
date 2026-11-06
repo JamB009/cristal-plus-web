@@ -243,3 +243,69 @@ test('exportSram returns the current SRAM', async () => {
   core.setMemory(MEM_SRAM, SAVED);
   assert.deepEqual(session.exportSram(), SAVED);
 });
+
+// ---- review fixes ----
+
+test('loading another ROM first saves the running game', async () => {
+  const { core, session, storage } = await newSession();
+  core.setMemory(MEM_SRAM, SAVED);
+  const other = await session.loadRom((await import('../helpers/roms.js')).loadRom('BYTE'));
+  assert.equal(other.ok, true);
+  assert.deepEqual(await storage.get('saves', 'PM_CRYSTAL_BYTS.srm'), SAVED);
+  assert.ok((await storage.keys('states')).includes('PM_CRYSTAL_BYTS/slot0'));
+});
+
+test('a successful send is persisted at once (state survives a kill before the next flush)', async () => {
+  const a = await newSession();
+  inject(a.core, 'party3');
+  assert.equal((await a.session.sendMon(1)).ok, true);
+  const b = await newSession({ idb: a.idb, load: false });
+  await b.session.loadLastRom();
+  assert.equal(partyOf(b.core).mons.length, 2);
+});
+
+test('a successful receive is persisted at once', async () => {
+  const a = await newSession();
+  inject(a.core, 'party3');
+  const sent = await a.session.sendMon(1);
+  assert.equal((await a.session.receive(decode(sent.code))).ok, true);
+  const b = await newSession({ idb: a.idb, load: false });
+  await b.session.loadLastRom();
+  assert.equal(partyOf(b.core).mons.length, 3);
+});
+
+test('if the used-code record cannot be written the receive is refused and nothing changes', async () => {
+  const { core, session, storage } = await newSession();
+  inject(core, 'party3');
+  const wram = wramOf(core);
+  storage.tradeClaim = async () => { throw new Error('quota'); };
+  const original = console.error;
+  console.error = () => {};
+  let r;
+  try { r = await session.receive(offer0); } finally { console.error = original; }
+  assert.equal(r.ok, false);
+  assert.match(r.message, /No se pudo registrar el intercambio/);
+  assert.deepEqual(wramOf(core), wram);
+});
+
+test('two tabs (two sessions on one database) cannot both receive the same code', async () => {
+  const a = await newSession();
+  const b = await newSession({ idb: a.idb });
+  inject(a.core, 'party3');
+  inject(b.core, 'party3');
+  const results = await Promise.all([a.session.receive(offer0), b.session.receive(offer0)]);
+  assert.equal(results.filter((r) => r.ok).length, 1);
+  assert.equal(results.filter((r) => !r.ok && r.message === MSG.used).length, 1);
+});
+
+test('latestBackup returns the newest backup made by importSram', async () => {
+  const { core, session } = await newSession();
+  assert.equal(await session.latestBackup(), null);
+  core.setMemory(MEM_SRAM, SAVED);
+  await session.importSram(new Uint8Array(32768).fill(1));
+  const first = await session.latestBackup();
+  assert.deepEqual(first.bytes, SAVED);
+  await new Promise((r) => setTimeout(r, 5));
+  await session.importSram(new Uint8Array(32768).fill(2));
+  assert.deepEqual((await session.latestBackup()).bytes, new Uint8Array(32768).fill(1));
+});

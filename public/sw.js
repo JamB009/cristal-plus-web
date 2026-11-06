@@ -1,11 +1,14 @@
 // Offline support. App files: network first (so updates arrive as soon as there is a connection),
-// falling back to the cache; the heavy, rarely-changing .wasm and icons: cache first.
-// Bump CACHE when ASSETS changes.
+// falling back to the cache. The wasm core and its glue (wasm/) plus the icons: cache first, because the
+// two core files must always come from the same build. The cache name carries the hash of that build
+// (tools/stamp-sw.mjs, run by core/build.sh), so a new core replaces the whole cache.
+// Bump the version number when ASSETS changes.
 
-const CACHE = 'crystal-web-v1';
+const CACHE = 'crystal-web-v1-9865869863f4';
 const ASSETS = [
   './',
   'index.html',
+  'licencias.txt',
   'manifest.webmanifest',
   'css/app.css',
   'data/pokemon.json',
@@ -17,6 +20,7 @@ const ASSETS = [
   'js/controls.js',
   'js/core.js',
   'js/gamedata.js',
+  'js/instance.js',
   'js/lifecycle.js',
   'js/main.js',
   'js/menu.js',
@@ -64,7 +68,10 @@ const fromCache = (request) => caches.match(request, { ignoreSearch: true });
 
 async function networkFirst(request) {
   try {
-    return await fetchAndCache(request, NETWORK_TIMEOUT_MS);
+    const res = await fetchAndCache(request, NETWORK_TIMEOUT_MS);
+    if (res.ok) return res;
+    // A server hiccup (404/500/503) must not break an app we already have.
+    return (await fromCache(request)) || res;
   } catch {
     return (await fromCache(request)) || (request.mode === 'navigate' && (await caches.match('./'))) || Response.error();
   }
@@ -79,5 +86,5 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(request.url);
   // Never cache the dev server's ROM route (see tools/serve.mjs --dev-roms).
   if (request.method !== 'GET' || url.origin !== location.origin || url.pathname.startsWith('/__dev/')) return;
-  event.respondWith(/\.(wasm|png)$/.test(url.pathname) ? cacheFirst(request) : networkFirst(request));
+  event.respondWith(/\/wasm\/|\.png$/.test(url.pathname) ? cacheFirst(request) : networkFirst(request));
 });

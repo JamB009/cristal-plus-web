@@ -48,3 +48,4 @@ em++ -O3 -std=c++11 -fno-exceptions -DNDEBUG -D__LIBRETRO__ -DHAVE_STDINT_H -DIN
     -sEXPORTED_RUNTIME_METHODS=HEAPU8,HEAP16 \
     -o "$OUT/gambatte.js"
 echo "OK: $OUT/gambatte.wasm ($(stat -c %s "$OUT/gambatte.wasm") bytes)"
+node "$HERE/../tools/stamp-sw.mjs"

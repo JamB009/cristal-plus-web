@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { createHash } from 'node:crypto';
 
 const pub = fileURLToPath(new URL('../../public/', import.meta.url));
 const source = readFileSync(join(pub, 'sw.js'), 'utf8');
@@ -28,7 +29,15 @@ test('the precache list names only files that exist', () => {
   assert.deepEqual(ghosts, []);
 });
 
-test('the cache is versioned and never touches the dev ROM route', () => {
-  assert.match(source, /const CACHE = 'crystal-web-v1'/);
+test('the cache name carries the hash of the wasm core, so a new core can never meet an old cache', () => {
+  const hash = createHash('sha256')
+    .update(readFileSync(join(pub, 'wasm/gambatte.js')))
+    .update(readFileSync(join(pub, 'wasm/gambatte.wasm')))
+    .digest('hex')
+    .slice(0, 12);
+  assert.match(source, new RegExp(`const CACHE = 'crystal-web-v1-${hash}'`), 'run: node tools/stamp-sw.mjs');
+});
+
+test('the service worker never touches the dev ROM route', () => {
   assert.match(source, /\/__dev\//);
 });

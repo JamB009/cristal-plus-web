@@ -71,7 +71,24 @@ export class Storage {
     return ((await this.get('kv', 'tradeUsed')) ?? []).includes(id);
   }
 
-  tradeMarkUsed(id) {
-    return this.update('kv', 'tradeUsed', (old) => ((old ?? []).includes(id) ? old : [...(old ?? []), id]));
+  /** Atomically records a code as used. Resolves true only for the caller that recorded it (safe across tabs). */
+  async tradeClaim(id) {
+    let added = false;
+    await this.update('kv', 'tradeUsed', (old) => {
+      const list = old ?? [];
+      if (list.includes(id)) return list;
+      added = true;
+      return [...list, id];
+    });
+    return added;
+  }
+
+  /** Undoes tradeClaim when the trade was refused after all. */
+  tradeRelease(id) {
+    return this.update('kv', 'tradeUsed', (old) => (old ?? []).filter((x) => x !== id));
+  }
+
+  async tradeMarkUsed(id) {
+    await this.tradeClaim(id);
   }
 }

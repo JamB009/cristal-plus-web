@@ -101,7 +101,11 @@ export class AudioOut {
       this.ctx = this.makeContext();
       this.setup = this.#setup();
     }
+    // resume() goes first and synchronously: iOS only honours it while the tap's user activation is alive,
+    // and loading the worklet module below takes long enough to lose it.
+    const resumed = this.ctx.state !== 'running' ? this.ctx.resume() : null;
     await this.setup;
+    if (resumed) await resumed;
     if (this.ctx.state !== 'running') await this.ctx.resume();
   }
 
@@ -124,7 +128,8 @@ export class AudioOut {
 
   /** Queues Int16 stereo samples recorded at srcRate. Dropped until audio is unlocked, or when muted. */
   push(samples, srcRate) {
-    if (!this.sink || this.muted || samples.length === 0) return;
+    // A suspended/interrupted context (call, Siri) doesn't consume: queueing would only add latency later.
+    if (!this.sink || this.muted || samples.length === 0 || this.ctx.state !== 'running') return;
     const r = resample(samples, srcRate, this.ctx.sampleRate, this.carry);
     this.carry = r.carry;
     this.pushedFrames += r.out.length >> 1;

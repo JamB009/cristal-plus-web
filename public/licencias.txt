@@ -1,0 +1,13 @@
+Pokémon Cristal+ Web — licencias
+
+El emulador (gambatte, compilado a WebAssembly) es software libre distribuido bajo la
+GNU General Public License, versión 2. Tienes derecho a recibir su código fuente completo y a modificarlo:
+
+  - gambatte (libgambatte), adaptación libretro:
+    https://github.com/libretro/gambatte-libretro  (commit 77f2567d718b8973d02caa2daa8dce4953faf811)
+  - El código de esta aplicación web (web/ del proyecto Cristal+), incluido el pegamento C++ (web/core/glue.cpp)
+    y el script de compilación (web/core/build.sh), se entrega con las mismas condiciones: pídeselo a quien te
+    haya pasado el enlace.
+
+Esta aplicación no incluye ninguna ROM ni imágenes de Pokémon. Pokémon es una marca de sus propietarios; este
+proyecto no está afiliado a ellos. Cada persona usa su propia copia legítima del juego.

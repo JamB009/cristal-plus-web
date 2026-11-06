@@ -20,6 +20,7 @@ const MSG = {
   memory: 'No se pudo leer la memoria del juego.',
   used: 'Ese código ya se usó en este teléfono.',
   badCode: 'El código de intercambio no es válido o está incompleto.',
+  claimFailed: 'No se pudo registrar el intercambio. Inténtalo de nuevo; tu equipo no ha cambiado.',
 };
 
 const SRAM_SIZE_TOLERANCE = 64; // RTC footer some emulators append to .sav files
@@ -66,6 +67,8 @@ export class Session {
   }
 
   async #load(rom, persist) {
+    // Switching games: save the running one first, or whatever happened since the last save is lost.
+    if (this.romInfo) await this.#flushQuietly();
     // No romInfo until the saves are restored: a flush in between would overwrite them with a blank SRAM.
     this.romInfo = null;
     this.snapshot = null;
@@ -147,6 +150,25 @@ export class Session {
     if (state) await this.storage.put('states', `${info.baseName}/${AUTO_SLOT}`, state);
   }
 
+  async #flushQuietly() {
+    try {
+      await this.flush();
+    } catch (e) {
+      console.error('Crystal+: no se pudo guardar', e);
+    }
+  }
+
+  /** The newest save that importSram replaced, as { key, bytes }, or null. */
+  async latestBackup() {
+    const info = this.romInfo;
+    if (!info) return null;
+    const mine = (await this.storage.keys('saves'))
+      .filter((k) => k.startsWith('backup-') && k.endsWith(`-${info.baseName}`))
+      .sort((a, b) => Number(a.split('-')[1]) - Number(b.split('-')[1]));
+    const key = mine.at(-1);
+    return key ? { key, bytes: await this.storage.get('saves', key) } : null;
+  }
+
   exportSram() {
     return this.core.getMemory(MEM_SRAM);
   }
@@ -201,6 +223,7 @@ export class Session {
       } catch (e) {
         console.error('Crystal+: no se pudo guardar el código enviado', e);
       }
+      await this.#flushQuietly(); // iOS may kill the app any time: persist the new party now
     }
     return result;
   }
@@ -229,14 +252,27 @@ export class Session {
     if (this.pendingIds.has(offer.id)) return fail(MSG.used);
     this.pendingIds.add(offer.id);
     try {
-      if (await this.storage.tradeUsed(offer.id)) return fail(MSG.used);
-      const result = this.#receiveNow(offer);
-      if (!result.ok) return result;
+      // Claim the code atomically (also across tabs) before touching the party.
+      let claimed;
       try {
-        await this.storage.tradeMarkUsed(offer.id);
+        claimed = await this.storage.tradeClaim(offer.id);
       } catch (e) {
-        console.error('Crystal+: no se pudo marcar el código como usado', e);
+        console.error('Crystal+: no se pudo registrar el código', e);
+        return fail(MSG.claimFailed);
       }
+      if (!claimed) return fail(MSG.used);
+      let result;
+      try {
+        result = this.#receiveNow(offer);
+      } catch (e) {
+        console.error('Crystal+: fallo al recibir', e);
+        result = fail(MSG.memory);
+      }
+      if (!result.ok) {
+        await this.storage.tradeRelease(offer.id).catch((e) => console.error('Crystal+: no se pudo liberar el código', e));
+        return result;
+      }
+      await this.#flushQuietly();
       return result;
     } finally {
       this.pendingIds.delete(offer.id);

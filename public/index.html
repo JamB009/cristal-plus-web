@@ -16,6 +16,10 @@
 <body>
   <main id="app">
     <section id="screen-wrap">
+      <div id="blocked" role="alert" hidden>
+        <h1>Pokémon Cristal+</h1>
+        <p>Ya está abierto en otra pestaña o ventana. Ciérrala y recarga esta: dos copias a la vez se pisarían la partida guardada.</p>
+      </div>
       <canvas id="screen" width="160" height="144" aria-label="Pantalla del juego"></canvas>
       <button id="menu-button" type="button" aria-label="Menú">☰</button>
       <div id="welcome">
@@ -24,6 +28,7 @@
         <!-- No "accept": iOS greys out files whose extension it doesn't know (.gbc). -->
         <label class="primary">Elegir ROM<input id="rom-input" type="file" hidden></label>
         <p id="error" role="alert" hidden></p>
+        <a class="legal" href="licencias.txt">Licencias</a>
       </div>
     </section>
     <aside id="install-hint" hidden>

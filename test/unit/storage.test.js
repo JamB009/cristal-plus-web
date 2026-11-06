@@ -42,3 +42,14 @@ test('concurrent tradeMarkUsed calls do not lose ids', async () => {
   await Promise.all(['aaaaaaaa', 'bbbbbbbb', 'cccccccc'].map((id) => st.tradeMarkUsed(id)));
   for (const id of ['aaaaaaaa', 'bbbbbbbb', 'cccccccc']) assert.equal(await st.tradeUsed(id), true, id);
 });
+
+test('tradeClaim is atomic across connections and tradeRelease undoes it', async () => {
+  const idb = new IDBFactory();
+  const a = await openStorage(idb);
+  const b = await openStorage(idb);
+  const claims = await Promise.all([a.tradeClaim('cafebabe'), b.tradeClaim('cafebabe')]);
+  assert.deepEqual(claims.slice().sort(), [false, true]);
+  await a.tradeRelease('cafebabe');
+  assert.equal(await b.tradeUsed('cafebabe'), false);
+  assert.equal(await b.tradeClaim('cafebabe'), true);
+});
