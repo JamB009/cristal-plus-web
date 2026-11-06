@@ -309,3 +309,59 @@ test('latestBackup returns the newest backup made by importSram', async () => {
   await session.importSram(new Uint8Array(32768).fill(2));
   assert.deepEqual((await session.latestBackup()).bytes, new Uint8Array(32768).fill(1));
 });
+
+// ---- game clock: Crystal darkens the palette at night, so the clock must follow the player's real time ----
+
+import { MEM_RTC } from '../../public/js/core.js';
+
+const baseOf = (core) => Number(new DataView(core.getMemory(MEM_RTC).buffer).getBigUint64(0, true));
+const at = (h, m = 0, s = 0) => new Date(2026, 10, 6, h, m, s); // local time
+const secs = (d) => Math.floor(d.getTime() / 1000);
+const fakeClock = (d) => () => d;
+
+test('a first run sets the game clock to the local time of day', async () => {
+  const now = at(14, 30);
+  const { core } = await newSession({ clock: fakeClock(now) });
+  assert.equal(secs(now) - baseOf(core), 14 * 3600 + 30 * 60);
+});
+
+test('a returning session keeps the clock it saved (it keeps counting real time)', async () => {
+  const first = await newSession({ clock: fakeClock(at(9)) });
+  const base = baseOf(first.core);
+  await first.session.flush();
+  const again = await newSession({ idb: first.idb, load: false, clock: fakeClock(at(23)) });
+  await again.session.loadLastRom();
+  assert.equal(baseOf(again.core), base);
+});
+
+test('a clock saved by an older version (midnight at first load) is re-synced once', async () => {
+  const first = await newSession({ clock: fakeClock(at(9)) });
+  await first.session.flush();
+  // Simulate the old version: an RTC record without the "synced" marker, started at midnight.
+  const old = new DataView(new ArrayBuffer(8));
+  old.setBigUint64(0, BigInt(secs(at(20)) - 60), true);
+  await first.storage.put('saves', 'PM_CRYSTAL_BYTS.rtc', new Uint8Array(old.buffer));
+  await first.storage.del('kv', 'clockSynced:PM_CRYSTAL_BYTS');
+
+  const next = await newSession({ idb: first.idb, load: false, clock: fakeClock(at(20, 5)) });
+  await next.session.loadLastRom();
+  assert.equal(secs(at(20, 5)) - baseOf(next.core), 20 * 3600 + 5 * 60);
+  await next.session.flush();
+  const third = await newSession({ idb: first.idb, load: false, clock: fakeClock(at(22)) });
+  await third.session.loadLastRom();
+  assert.equal(baseOf(third.core), baseOf(next.core), 'the second load must not re-sync');
+});
+
+test('importing a .sav keeps the game clock instead of resetting it to midnight', async () => {
+  const { core, session } = await newSession({ clock: fakeClock(at(15)) });
+  const before = baseOf(core);
+  assert.equal((await session.importSram(new Uint8Array(32768).fill(7))).ok, true);
+  assert.equal(baseOf(core), before);
+});
+
+test('syncClock() puts the game clock on the local time and says which', async () => {
+  const { core, session } = await newSession({ clock: fakeClock(at(8)) });
+  const r = await session.syncClock(at(17, 45, 10));
+  assert.equal(r, '17:45');
+  assert.equal(secs(at(17, 45, 10)) - baseOf(core), 17 * 3600 + 45 * 60 + 10);
+});

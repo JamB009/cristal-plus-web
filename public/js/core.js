@@ -19,6 +19,11 @@ export const MEM_RTC = 1;
 /** Full 32 KB of WRAM; offset 0 is address 0xC000, bank n lives at 0x1000 * n. */
 export const MEM_WRAM = 2;
 
+/** Colour looks: raw GBC colours, gambatte's fast correction, and the dim "real GBC LCD" look. */
+export const COLOR_VIVID = 0;
+export const COLOR_SOFT = 1;
+export const COLOR_LCD = 2;
+
 const WRAM_BASE = 0xc000;
 
 export async function createCore() {
@@ -32,6 +37,7 @@ export class Core {
     /** Native rate of readAudio(): 2 MHz box-filtered by 64. */
     this.audioRate = 32768;
     this.loaded = false;
+    this.colorMode = COLOR_LCD; // same default as glue.cpp: matches the Android app's look
     this._frame = null;
   }
 
@@ -42,6 +48,13 @@ export class Core {
     this.loaded = m._gb_load(p, rom.length) === 1;
     m._free(p);
     return this.loaded;
+  }
+
+  /** Returns false for an unknown mode. Persists across ROM loads. */
+  setColorMode(mode) {
+    const ok = this.m._gb_set_color_mode(mode) === 1;
+    if (ok) this.colorMode = mode;
+    return ok;
   }
 
   reset() {

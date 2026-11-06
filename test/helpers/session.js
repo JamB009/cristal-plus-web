@@ -11,10 +11,10 @@ export const names = JSON.parse(readFileSync(new URL('../../public/data/pokemon.
 const scenarios = Object.fromEntries(fixture('mons').map((s) => [s.name, s]));
 
 /** A Session on a fresh core with the Spanish ROM loaded; `idb` can be shared to simulate a reload. */
-export async function newSession({ idb = new IDBFactory(), code = 'BYTS', load = true } = {}) {
+export async function newSession({ idb = new IDBFactory(), code = 'BYTS', load = true, clock } = {}) {
   const core = await createCore();
   const storage = await openStorage(idb);
-  const session = await Session.create({ core, storage, names });
+  const session = await Session.create({ core, storage, names, clock });
   if (load) {
     const r = await session.loadRom(loadRom(code));
     if (!r.ok) throw new Error(r.error);

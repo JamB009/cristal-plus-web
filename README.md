@@ -24,7 +24,8 @@ solo en su dispositivo.
 4. El sonido empieza tras tu primer toque (regla de iOS).
 5. **Haz copias de seguridad**: menú ☰ → *Exportar partida (.sav)*. Es el único respaldo si el navegador borra los datos.
    Al importar un `.sav` se guarda antes tu partida anterior: menú → *Exportar copia anterior*.
-6. Una sola pestaña a la vez: si abres la app en dos sitios, la segunda se bloquea para no pisar la partida.
+6. El reloj del juego sigue tu hora local (Crystal oscurece la paleta de noche, de 18:00 a 04:00). Si el juego muestra la hora equivocada: menú → *Sincronizar reloj del juego*.
+7. Una sola pestaña a la vez: si abres la app en dos sitios, la segunda se bloquea para no pisar la partida.
 
 ## Intercambiar con la app Android
 

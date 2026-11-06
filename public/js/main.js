@@ -160,6 +160,10 @@ async function main() {
   menu.add('Exportar partida (.sav)', exportSav);
   menu.add('Importar partida (.sav)…', () => savInput.click());
   menu.add('Exportar copia anterior (.sav)', exportBackup);
+  menu.add('Sincronizar reloj del juego', async () => {
+    const time = await session.syncClock();
+    notify(time ? `Reloj del juego ajustado a ${time} (tu hora).` : 'Carga primero un juego.');
+  });
   menu.add('Cargar otra ROM…', () => input.click());
 
   const soundItem = menu.add('', async () => {

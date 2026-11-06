@@ -44,7 +44,7 @@ em++ -O3 -std=c++11 -fno-exceptions -DNDEBUG -D__LIBRETRO__ -DHAVE_STDINT_H -DIN
     "${FILES[@]}" "$TMP/gambatte_log.o" "$HERE/glue.cpp" \
     -sMODULARIZE=1 -sEXPORT_ES6=1 -sEXPORT_NAME=createGambatte -sENVIRONMENT=web,node \
     -sALLOW_MEMORY_GROWTH=1 -sFILESYSTEM=0 -sASSERTIONS=0 \
-    -sEXPORTED_FUNCTIONS=_malloc,_free,_gb_load,_gb_reset,_gb_set_input,_gb_run_frame,_gb_rgba_ptr,_gb_audio_ptr,_gb_audio_count,_gb_audio_clear,_gb_sram_ptr,_gb_sram_size,_gb_rtc_ptr,_gb_rtc_size,_gb_wram_ptr,_gb_wram_size,_gb_state_size,_gb_save_state,_gb_load_state \
+    -sEXPORTED_FUNCTIONS=_malloc,_free,_gb_load,_gb_reset,_gb_set_input,_gb_set_color_mode,_gb_run_frame,_gb_rgba_ptr,_gb_audio_ptr,_gb_audio_count,_gb_audio_clear,_gb_sram_ptr,_gb_sram_size,_gb_rtc_ptr,_gb_rtc_size,_gb_wram_ptr,_gb_wram_size,_gb_state_size,_gb_save_state,_gb_load_state \
     -sEXPORTED_RUNTIME_METHODS=HEAPU8,HEAP16 \
     -o "$OUT/gambatte.js"
 echo "OK: $OUT/gambatte.wasm ($(stat -c %s "$OUT/gambatte.wasm") bytes)"

@@ -89,3 +89,61 @@ test('input mask reaches the game: START changes the title screen', async () => 
   run(core, 60);
   assert.notEqual(hash(core), before);
 });
+
+// ---- colour modes ----
+
+import { COLOR_VIVID, COLOR_SOFT, COLOR_LCD } from '../../public/js/core.js';
+
+async function hashWith(mode, rom = 'BYTS', first = null) {
+  const core = await createCore();
+  if (first) core.load(loadRom(first));
+  assert.equal(core.setColorMode(mode), true);
+  core.load(loadRom(rom));
+  run(core, 1500); // the intro scene has plenty of colour
+  return hash(core);
+}
+
+test('each colour mode renders the same emulation with different colours', async () => {
+  const hashes = [await hashWith(COLOR_VIVID), await hashWith(COLOR_SOFT), await hashWith(COLOR_LCD)];
+  assert.equal(new Set(hashes).size, 3);
+});
+
+test('a colour mode is deterministic and survives loading another ROM', async () => {
+  const direct = await hashWith(COLOR_SOFT, 'BYTE');
+  assert.equal(await hashWith(COLOR_SOFT, 'BYTE'), direct);
+  assert.equal(await hashWith(COLOR_SOFT, 'BYTE', 'BYTS'), direct);
+  assert.notEqual(await hashWith(COLOR_LCD, 'BYTE'), direct);
+});
+
+test('unknown colour modes are rejected and the current one is kept', async () => {
+  const core = await createCore();
+  assert.equal(core.setColorMode(99), false);
+  assert.equal(core.setColorMode(-1), false);
+  assert.equal(core.colorMode, COLOR_LCD, 'the default matches the Android app');
+  assert.equal(core.setColorMode(COLOR_SOFT), true);
+  assert.equal(core.colorMode, COLOR_SOFT);
+});
+
+// ---- brightness: gambatte returns 5-bit channels, they must be expanded to the full 0-255 range ----
+
+test('the picture uses the full 8-bit range (a bright scene reaches near-white)', async () => {
+  const core = await createCore();
+  core.load(loadRom('BYTS'));
+  let max = 0;
+  for (let i = 0; i < 4000; i++) {
+    core.runFrame();
+    if (i % 50 === 0) for (const v of core.frame) max = Math.max(max, v === 255 ? 0 : v); // skip alpha
+  }
+  assert.ok(max > 200, `brightest colour channel in the whole intro: ${max} (5-bit values stop at 31)`);
+});
+
+test('no colour channel is stuck in the 5-bit range: values are 8-bit expansions', async () => {
+  const core = await createCore();
+  core.load(loadRom('BYTS'));
+  let above31 = false;
+  for (let i = 0; i < 3000 && !above31; i++) {
+    core.runFrame();
+    if (i % 100 === 0) for (let p = 0; p < core.frame.length; p += 4) if (core.frame[p] > 31 || core.frame[p + 1] > 31 || core.frame[p + 2] > 31) above31 = true;
+  }
+  assert.ok(above31);
+});

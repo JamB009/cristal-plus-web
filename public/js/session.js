@@ -28,6 +28,16 @@ const SRAM_SAVE_FRAMES = 600; // ~10 s
 const PARTY_CHECK_FRAMES = 60; // ~1 s
 const AUTO_SLOT = 'slot0';
 
+const clockKey = (base) => `clockSynced:${base}`;
+
+/** gambatte's RTC is one 8-byte little-endian base time: the game clock reads (now - base). */
+function localMidnightBase(date) {
+  const sinceMidnight = date.getHours() * 3600 + date.getMinutes() * 60 + date.getSeconds();
+  const bytes = new Uint8Array(8);
+  new DataView(bytes.buffer).setBigUint64(0, BigInt(Math.floor(date.getTime() / 1000) - sinceMidnight), true);
+  return bytes;
+}
+
 const fail = (message) => ({ ok: false, message });
 
 function hash(bytes) {
@@ -37,11 +47,12 @@ function hash(bytes) {
 }
 
 export class Session {
-  static async create({ core, storage, names }) {
-    return new Session(core, storage, names);
+  static async create({ core, storage, names, clock = () => new Date() }) {
+    return new Session(core, storage, names, clock);
   }
 
-  constructor(core, storage, names) {
+  constructor(core, storage, names, clock) {
+    this.clock = clock;
     this.core = core;
     this.storage = storage;
     this.names = names;
@@ -82,8 +93,17 @@ export class Session {
     if (state) this.core.loadState(state);
     const sram = await this.storage.get('saves', `${base}.srm`);
     if (sram) this.core.setMemory(MEM_SRAM, sram);
+    // Crystal darkens everything at night, so the game clock has to follow the player's real time of day.
+    // gambatte starts it at 00:00 on every fresh load, and an RTC saved without the marker comes from a
+    // version that did exactly that: both get put on the local time, once.
     const rtc = await this.storage.get('saves', `${base}.rtc`);
-    if (rtc) this.core.setMemory(MEM_RTC, rtc);
+    const synced = (await this.storage.get('kv', clockKey(base))) === true;
+    if (rtc && synced) {
+      this.core.setMemory(MEM_RTC, rtc);
+    } else {
+      this.core.setMemory(MEM_RTC, localMidnightBase(this.clock()));
+      await this.storage.put('kv', clockKey(base), true);
+    }
     this.lastSramHash = hash(this.core.getMemory(MEM_SRAM) ?? new Uint8Array());
 
     if (persist) {
@@ -169,6 +189,16 @@ export class Session {
     return key ? { key, bytes: await this.storage.get('saves', key) } : null;
   }
 
+  /** Puts the game clock on the player's local time. Returns it as "HH:MM". */
+  async syncClock(date = this.clock()) {
+    const info = this.romInfo;
+    if (!info) return null;
+    this.core.setMemory(MEM_RTC, localMidnightBase(date));
+    await this.persistSram();
+    await this.storage.put('kv', clockKey(info.baseName), true);
+    return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+  }
+
   exportSram() {
     return this.core.getMemory(MEM_SRAM);
   }
@@ -190,7 +220,9 @@ export class Session {
     await this.storage.put('saves', `${info.baseName}.srm`, data);
     this.lastSramHash = hash(data);
     await this.storage.del('states', `${info.baseName}/${AUTO_SLOT}`);
-    this.core.reset();
+    const clock = this.core.getMemory(MEM_RTC);
+    this.core.reset(); // a reset also restarts gambatte's clock at 00:00
+    if (clock) this.core.setMemory(MEM_RTC, clock);
     this.snapshot = null;
     return { ok: true, message: 'Partida importada.' };
   }

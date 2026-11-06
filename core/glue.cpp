@@ -29,6 +29,27 @@ gambatte::GB gb;
 Input input;
 bool loaded = false;
 
+// 0 = vivid (raw GBC colours), 1 = soft (gambatte's fast correction), 2 = GBC LCD ("gold standard").
+// 2 is the default: it matches how the Android app looks.
+int colorMode = 2;
+
+void applyColorMode() {
+  if (!loaded) return;
+  switch (colorMode) {
+    case 0:
+      gb.setColorCorrection(false);
+      break;
+    case 1:
+      gb.setColorCorrection(true);
+      gb.setColorCorrectionMode(1);
+      break;
+    default:
+      gb.setColorCorrection(true);
+      gb.setColorCorrectionMode(0);
+      break;
+  }
+}
+
 gambatte::video_pixel_t video[kPitch * kHeight];
 uint32_t rgba[kWidth * kHeight];
 uint32_t sound[kSoundBuf];
@@ -55,13 +76,16 @@ void pushAudio(unsigned samples) {
   }
 }
 
+// libgambatte packs 5-bit channels (0-31) as 0x00RRGGBB; expand each to 8 bits (31 -> 255) for the canvas.
+inline uint32_t expand5(uint32_t c) { return ((c & 0x1f) << 3) | ((c & 0x1f) >> 2); }
+
 void convertVideo() {
   for (int y = 0; y < kHeight; y++) {
     const gambatte::video_pixel_t* src = video + y * kPitch;
     uint32_t* dst = rgba + y * kWidth;
     for (int x = 0; x < kWidth; x++) {
       const uint32_t p = src[x];
-      dst[x] = 0xff000000u | ((p & 0xff) << 16) | (p & 0xff00) | ((p >> 16) & 0xff);
+      dst[x] = 0xff000000u | (expand5(p) << 16) | (expand5(p >> 8) << 8) | expand5(p >> 16);
     }
   }
 }
@@ -94,8 +118,16 @@ int gb_load(const uint8_t* rom, unsigned size) {
   std::memset(rgba, 0, sizeof(rgba));
   gb.setInputGetter(&input);
   if (gb.load(rom, size, 0) != 0) return 0;
-  gb.setColorCorrection(gb.isCgb());
   loaded = true;
+  applyColorMode();
+  return 1;
+}
+
+// Returns 1 if the mode exists. Takes effect from the next frame; also applies to later ROM loads.
+int gb_set_color_mode(int mode) {
+  if (mode < 0 || mode > 2) return 0;
+  colorMode = mode;
+  applyColorMode();
   return 1;
 }
 
