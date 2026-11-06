@@ -5,6 +5,8 @@ import { loadNames } from './names.js';
 import { createScreen } from './screen.js';
 import { mountControls } from './controls.js';
 import { createMenu } from './menu.js';
+import { AudioOut } from './audio.js';
+import { installLifecycle } from './lifecycle.js';
 
 const $ = (selector) => document.querySelector(selector);
 const params = new URLSearchParams(location.search);
@@ -15,6 +17,8 @@ async function main() {
   const session = await Session.create({ core, storage, names });
   const screen = createScreen($('#screen'), $('#screen-wrap'));
   const menu = createMenu($('#menu-button'), $('#menu'));
+  const audio = new AudioOut();
+  audio.setMuted((await storage.get('kv', 'muted')) === true);
   mountControls($('#controls'), (mask) => session.setInput(mask));
 
   // ---- frame loop: one emulated frame per 1/fps of wall time, whatever the display's refresh rate ----
@@ -34,7 +38,10 @@ async function main() {
       frames++;
     }
     if (acc > step * 4) acc = 0;
-    if (frames > 0) screen.draw(core.frame);
+    if (frames > 0) {
+      screen.draw(core.frame);
+      audio.push(core.readAudio(), core.audioRate);
+    }
     requestAnimationFrame(tick);
   }
 
@@ -88,6 +95,25 @@ async function main() {
   });
   menu.add('Cargar otra ROM…', () => input.click());
 
+  const soundItem = menu.add('', async () => {
+    audio.setMuted(!audio.muted);
+    showSound();
+    await storage.put('kv', 'muted', audio.muted);
+  });
+  const showSound = () => {
+    soundItem.textContent = audio.muted ? '🔇 Sonido: no' : '🔊 Sonido: sí';
+  };
+  showSound();
+
+  installLifecycle({
+    session,
+    audio,
+    pause: () => runner.pause(),
+    resume: () => {
+      if (session.romInfo) runner.start();
+    },
+  });
+
   window.addEventListener('resize', () => screen.resize());
   screen.resize();
 
@@ -98,6 +124,7 @@ async function main() {
       storage,
       runner,
       menu,
+      audio,
       advance(n) {
         for (let i = 0; i < n; i++) session.frame();
         screen.draw(core.frame);
