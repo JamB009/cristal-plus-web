@@ -22,7 +22,9 @@ solo en su dispositivo.
    mucho mejor que una pestaña de Safari (que puede borrarlos tras días sin usarse).
 3. Ábrela desde el icono, pulsa **Elegir ROM** y selecciona tu archivo `.gbc`.
 4. El sonido empieza tras tu primer toque (regla de iOS).
-5. **Haz copias de seguridad**: menú ☰ → exportar el `.sav`. Es el único respaldo si el navegador borra los datos.
+5. **Haz copias de seguridad**: menú ☰ → *Exportar partida (.sav)*. Es el único respaldo si el navegador borra los datos.
+   Al importar un `.sav` se guarda antes tu partida anterior: menú → *Exportar copia anterior*.
+6. Una sola pestaña a la vez: si abres la app en dos sitios, la segunda se bloquea para no pisar la partida.
 
 ## Intercambiar con la app Android
 
@@ -85,7 +87,8 @@ falta cabeceras especiales. Aviso: la dirección es pública si no la proteges; 
 solo el emulador y los nombres de las especies.
 
 Al publicar una nueva versión, el service worker (`public/sw.js`) usa la red primero, así que los cambios llegan solos.
-Si añades o quitas archivos de `public/`, actualiza `ASSETS` en `sw.js` (una prueba lo comprueba) y sube el número de `CACHE`.
+Si añades o quitas archivos de `public/`, actualiza `ASSETS` en `sw.js` (una prueba lo comprueba) y sube el número de versión de `CACHE`.
+El hash del núcleo wasm va en el nombre de `CACHE`: `core/build.sh` lo actualiza solo (`node tools/stamp-sw.mjs`).
 
 ## Comprobaciones en un iPhone real
 
