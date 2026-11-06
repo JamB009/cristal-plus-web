@@ -70,7 +70,13 @@ async function main() {
     error.hidden = !text;
   };
 
+  let persistAsked = false;
   function begin() {
+    if (!persistAsked) {
+      persistAsked = true;
+      // Ask the browser not to evict our storage (saves live there). Safari may ignore it; the .sav export is the backup.
+      navigator.storage?.persist?.().catch(() => {});
+    }
     welcome.hidden = true;
     screen.resize();
     screen.draw(core.frame);
@@ -115,6 +121,16 @@ async function main() {
       if (session.romInfo) runner.start();
     },
   });
+
+  const hint = $('#install-hint');
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  if (isIOS && navigator.standalone === false && (await storage.get('kv', 'hintDismissed')) !== true) hint.hidden = false;
+  hint.querySelector('button').addEventListener('click', async () => {
+    await storage.put('kv', 'hintDismissed', true);
+    hint.hidden = true;
+  });
+
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch((e) => console.warn('Crystal+: sin service worker', e));
 
   window.addEventListener('resize', () => screen.resize());
   screen.resize();

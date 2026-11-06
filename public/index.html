@@ -5,6 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
   <meta name="theme-color" content="#101216">
   <title>Pokémon Cristal+</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="icons/icon-180.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Cristal+">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <link rel="stylesheet" href="css/app.css">
 </head>
 <body>
@@ -20,6 +26,10 @@
         <p id="error" role="alert" hidden></p>
       </div>
     </section>
+    <aside id="install-hint" hidden>
+      <span>Para no perder tu partida: Compartir → Añadir a pantalla de inicio</span>
+      <button type="button" aria-label="Cerrar">✕</button>
+    </aside>
     <div id="controls"></div>
   </main>
   <div id="menu" class="overlay" hidden><ul></ul></div>

@@ -234,3 +234,22 @@ html, body {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+
+#install-hint {
+  position: fixed;
+  z-index: 1;
+  top: calc(env(safe-area-inset-top) + 6px);
+  left: calc(env(safe-area-inset-left) + 10px);
+  right: calc(env(safe-area-inset-right) + 64px);
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 8px 8px 12px;
+  border-radius: 12px;
+  background: var(--panel);
+  color: var(--muted);
+  font-size: 13px;
+}
+#install-hint[hidden] { display: none; }
+#install-hint span { flex: 1; }
+#install-hint button { width: 32px; height: 32px; border: 0; border-radius: 50%; background: var(--btn); color: var(--text); }
