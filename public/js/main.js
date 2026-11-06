@@ -101,6 +101,49 @@ async function main() {
     input.value = '';
     if (file) await loadFile(new Uint8Array(await file.arrayBuffer()));
   });
+
+  const toast = $('#toast');
+  let toastTimer;
+  const notify = (text) => {
+    toast.textContent = text;
+    toast.hidden = false;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { toast.hidden = true; }, 5000);
+  };
+
+  async function exportSav() {
+    const bytes = session.exportSram();
+    if (!bytes || !session.romInfo) return notify('Carga primero un juego.');
+    const name = `${session.romInfo.baseName}.sav`;
+    const file = new File([bytes], name, { type: 'application/octet-stream' });
+    // On iOS the share sheet offers "Guardar en Archivos"; elsewhere a normal download.
+    if (navigator.canShare?.({ files: [file] })) {
+      try {
+        await navigator.share({ files: [file], title: name });
+        return;
+      } catch (e) {
+        if (e.name === 'AbortError') return;
+      }
+    }
+    const url = URL.createObjectURL(file);
+    const a = Object.assign(document.createElement('a'), { href: url, download: name });
+    document.body.append(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10_000);
+  }
+
+  const savInput = $('#sav-input');
+  savInput.addEventListener('change', async () => {
+    const file = savInput.files[0];
+    savInput.value = '';
+    if (!file) return;
+    const r = await session.importSram(new Uint8Array(await file.arrayBuffer()));
+    notify(r.ok ? 'Partida importada. Tu partida anterior quedó guardada como copia de seguridad.' : r.message);
+  });
+
+  menu.add('Exportar partida (.sav)', exportSav);
+  menu.add('Importar partida (.sav)…', () => savInput.click());
   menu.add('Cargar otra ROM…', () => input.click());
 
   const soundItem = menu.add('', async () => {
