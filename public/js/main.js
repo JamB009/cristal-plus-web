@@ -7,6 +7,7 @@ import { mountControls } from './controls.js';
 import { createMenu } from './menu.js';
 import { AudioOut } from './audio.js';
 import { installLifecycle } from './lifecycle.js';
+import { mountTradeUI } from './trade-ui.js';
 
 const $ = (selector) => document.querySelector(selector);
 const params = new URLSearchParams(location.search);
@@ -17,6 +18,7 @@ async function main() {
   const session = await Session.create({ core, storage, names });
   const screen = createScreen($('#screen'), $('#screen-wrap'));
   const menu = createMenu($('#menu-button'), $('#menu'));
+  mountTradeUI(document.body, { session, storage, names, menu });
   const audio = new AudioOut();
   audio.setMuted((await storage.get('kv', 'muted')) === true);
   mountControls($('#controls'), (mask) => session.setInput(mask));

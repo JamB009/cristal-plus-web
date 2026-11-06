@@ -192,3 +192,45 @@ html, body {
   .dpad { width: min(24vw, 150px); }
   .ab { width: min(26vw, 170px); }
 }
+
+.sheet {
+  width: min(100%, 420px);
+  max-height: 100%;
+  overflow: auto;
+  padding: 16px;
+  background: var(--panel);
+  border-radius: 16px;
+}
+.sheet h2 { margin: 0 0 8px; font-size: 18px; }
+.sheet p { margin: 0 0 10px; color: var(--muted); white-space: pre-line; }
+.sheet .trade-message { color: var(--text); }
+.sheet .trade-error { color: #ff8a8a; }
+.sheet .choices { display: grid; gap: 8px; margin-bottom: 12px; }
+.sheet .actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+.sheet button {
+  padding: 12px 18px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--btn);
+  color: var(--text);
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+}
+.sheet .actions button { text-align: center; }
+.sheet button.primary { background: var(--accent); color: #0b1020; }
+.sheet button.secondary { background: transparent; color: var(--muted); }
+.sheet textarea, .sheet pre {
+  width: 100%;
+  margin: 0 0 10px;
+  padding: 10px;
+  border: 1px solid #343a48;
+  border-radius: 10px;
+  background: #11141a;
+  color: var(--text);
+  font: 13px/1.4 ui-monospace, Menlo, monospace;
+  -webkit-user-select: text;
+  user-select: text;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
