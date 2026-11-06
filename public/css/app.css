@@ -240,7 +240,7 @@ html, body {
   z-index: 1;
   top: calc(env(safe-area-inset-top) + 6px);
   left: calc(env(safe-area-inset-left) + 10px);
-  right: calc(env(safe-area-inset-right) + 64px);
+  right: calc(env(safe-area-inset-right) + 170px);
   display: flex;
   gap: 8px;
   align-items: center;
@@ -287,3 +287,24 @@ html, body {
 #blocked h1 { margin: 0; font-size: 24px; }
 #blocked p { margin: 0; color: var(--muted); max-width: 32ch; }
 .legal { margin-top: 12px; color: var(--muted); font-size: 13px; }
+
+#speed {
+  position: fixed;
+  z-index: 2;
+  top: calc(env(safe-area-inset-top) + 6px);
+  right: calc(env(safe-area-inset-right) + 62px);
+  display: flex;
+  gap: 8px;
+}
+#speed button {
+  min-width: 48px;
+  height: 44px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 22px;
+  background: rgb(255 255 255 / 0.08);
+  color: var(--text);
+  font: 700 15px system-ui, sans-serif;
+  touch-action: manipulation;
+}
+#speed button[aria-pressed="true"] { background: var(--accent); color: #0b1020; }

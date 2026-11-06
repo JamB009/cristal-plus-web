@@ -9,6 +9,7 @@ import { AudioOut } from './audio.js';
 import { installLifecycle } from './lifecycle.js';
 import { mountTradeUI } from './trade-ui.js';
 import { acquireInstance } from './instance.js';
+import { createPacer } from './pacer.js';
 
 const $ = (selector) => document.querySelector(selector);
 const params = new URLSearchParams(location.search);
@@ -30,26 +31,20 @@ async function main() {
   audio.setMuted((await storage.get('kv', 'muted')) === true);
   mountControls($('#controls'), (mask) => session.setInput(mask));
 
-  // ---- frame loop: one emulated frame per 1/fps of wall time, whatever the display's refresh rate ----
+  // ---- frame loop: the pacer turns wall time into frames, whatever the display's refresh rate ----
+  const pacer = createPacer(core.fps);
   let running = false;
   let last = 0;
-  let acc = 0;
-  const step = 1000 / core.fps;
 
   function tick(now) {
     if (!running) return;
-    acc += Math.min(now - last, 100);
+    const frames = pacer.advance(now - last);
     last = now;
-    let frames = 0;
-    while (acc >= step && frames < 4) {
-      session.frame();
-      acc -= step;
-      frames++;
-    }
-    if (acc > step * 4) acc = 0;
+    for (let i = 0; i < frames; i++) session.frame();
     if (frames > 0) {
       screen.draw(core.frame);
-      audio.push(core.readAudio(), core.audioRate);
+      const samples = core.readAudio(); // always drained, or it would pile up
+      if (pacer.speed === 1) audio.push(samples, core.audioRate); // fast-forward is silent
     }
     requestAnimationFrame(tick);
   }
@@ -58,11 +53,14 @@ async function main() {
     get running() {
       return running;
     },
+    get speed() {
+      return pacer.speed;
+    },
     start() {
       if (running) return;
       running = true;
       last = performance.now();
-      acc = 0;
+      pacer.reset();
       requestAnimationFrame(tick);
     },
     pause() {
@@ -192,6 +190,19 @@ async function main() {
   });
 
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch((e) => console.warn('Crystal+: sin service worker', e));
+
+  // ×4 / ×8 fast-forward: tap to turn on, tap again for normal speed. Not remembered across reloads.
+  const speedButtons = { 4: $('#speed-4'), 8: $('#speed-8') };
+  const showSpeed = () => {
+    for (const [n, b] of Object.entries(speedButtons)) b.setAttribute('aria-pressed', String(pacer.speed === Number(n)));
+  };
+  for (const [n, b] of Object.entries(speedButtons)) {
+    b.addEventListener('click', () => {
+      pacer.setSpeed(pacer.speed === Number(n) ? 1 : Number(n));
+      showSpeed();
+    });
+  }
+  showSpeed();
 
   window.addEventListener('resize', () => screen.resize());
   screen.resize();

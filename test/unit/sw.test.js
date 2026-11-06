@@ -35,7 +35,7 @@ test('the cache name carries the hash of the wasm core, so a new core can never 
     .update(readFileSync(join(pub, 'wasm/gambatte.wasm')))
     .digest('hex')
     .slice(0, 12);
-  assert.match(source, new RegExp(`const CACHE = 'crystal-web-v1-${hash}'`), 'run: node tools/stamp-sw.mjs');
+  assert.match(source, new RegExp(`const CACHE = 'crystal-web-v\\d+-${hash}'`), 'run: node tools/stamp-sw.mjs');
 });
 
 test('the service worker never touches the dev ROM route', () => {

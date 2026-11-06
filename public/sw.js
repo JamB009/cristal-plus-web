@@ -4,7 +4,7 @@
 // (tools/stamp-sw.mjs, run by core/build.sh), so a new core replaces the whole cache.
 // Bump the version number when ASSETS changes.
 
-const CACHE = 'crystal-web-v1-9865869863f4';
+const CACHE = 'crystal-web-v2-9865869863f4';
 const ASSETS = [
   './',
   'index.html',
@@ -26,6 +26,7 @@ const ASSETS = [
   'js/menu.js',
   'js/mons.js',
   'js/names.js',
+  'js/pacer.js',
   'js/party.js',
   'js/roms.js',
   'js/screen.js',
